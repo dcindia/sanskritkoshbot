@@ -87,7 +87,7 @@ dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), get_mea
 dispatcher.add_handler(MessageHandler(Filters.command, unknown))
 dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))
 
-PORT = int(os.environ.get('PORT', 5000))
+PORT = int(os.environ.get('PORT', 8443))
 updater.start_webhook(listen="0.0.0.0",
                       port=int(PORT),
                       url_path=BOT_TOKEN)

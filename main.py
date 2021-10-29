@@ -1,6 +1,7 @@
 import urllib.request
 import urllib.parse
 import re
+import os
 import logging
 from telegram import Update
 from telegram import InlineQueryResultArticle, InputTextMessageContent
@@ -50,8 +51,7 @@ def meaning(word):
         return "No better meaning found."
 
 
-token_file = open(r'TOKEN.txt', "r")
-BOT_TOKEN = token_file.readline()
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
 
 updater = Updater(BOT_TOKEN)
 dispatcher = updater.dispatcher
@@ -87,5 +87,11 @@ dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), get_mea
 dispatcher.add_handler(MessageHandler(Filters.command, unknown))
 dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))
 
-updater.start_polling()
+PORT = int(os.environ.get('PORT', 5000))
+updater.start_webhook(listen="0.0.0.0",
+                      port=int(PORT),
+                      url_path=BOT_TOKEN)
+updater.bot.setWebhook('https://sanskritkoshbot.herokuapp.com/' + BOT_TOKEN)
+
+
 updater.idle()

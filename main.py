@@ -34,6 +34,7 @@ class HTMLStripper(HTMLParser):
 
 
 def meaning(word):
+    word = str.lower(word)
     transformed_word = urllib.parse.quote(word)
     url = RAW_URL + transformed_word
 

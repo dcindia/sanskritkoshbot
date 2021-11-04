@@ -1,3 +1,5 @@
+from html.parser import HTMLParser
+from io import StringIO
 import urllib.request
 import urllib.parse
 import re
@@ -14,10 +16,30 @@ logger = logging.getLogger(__name__)
 RAW_URL = "http://kosha.sanskrit.today/word/"
 
 
+class HTMLStripper(HTMLParser):
+    def __init__(self, *, convert_charrefs: bool = ...) -> None:
+        super().__init__(convert_charrefs=convert_charrefs)
+        self.reset()
+        self.strict = False
+        self.convert_charrefs = True
+        self.text = StringIO()
+
+    def handle_data(self, data: str) -> None:
+        self.text.write(data)
+        return super().handle_data(data)
+
+    def strip(self, html_text):
+        html_text = str.strip(html_text)
+        self.feed(html_text)
+        return self.text.getvalue()
+
+
 def meaning(word):
+    word = str.lower(word)
     transformed_word = urllib.parse.quote(word)
     url = RAW_URL + transformed_word
 
+    print("**************************************************************************")
     print(url)
     headers = {"User-Agent": "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"}
     request = urllib.request.Request(url, headers=headers)
@@ -25,7 +47,6 @@ def meaning(word):
     result = instance.read().decode('utf-8')
     file = open(r"result.html", 'w')
     file.write(urllib.parse.unquote(str(result)))
-    print("**************************************************************************")
     extracted_parts = re.findall(r'<h5>.*?</h5>.*?div class="card-body".*?</div>', str(result), re.DOTALL)
 
     for part in extracted_parts:
@@ -36,25 +57,20 @@ def meaning(word):
             answer_inside = re.search(r'<table>.*?<tr>(.*?)</tr>.*?</table>', part)
             answer_row = re.sub(r'<span.*?>|</span>', '', str(answer_inside.group(1)))
             answer_row = re.findall(r'<td>(.*?)</td>', answer_row)
-            answer_list = ["* " + k.strip() + "\n" for k in answer_row if k != '']
+            answer_list = ["* " + HTMLStripper().strip(k) + "\n" for k in answer_row if k != '']
 
             answer_string = ''.join(answer_list)
             return answer_string
 
         elif service.group(1) == "Hindi":
             answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
-            answer_table = f'* {word}\n* {answer_inside.group(1)}'
+            answer = str(answer_inside.group(1))
+            answer_table = f'* {word}\n* {HTMLStripper().strip(answer)}'
             print(answer_table)
             return answer_table
 
     else:
         return "No better meaning found."
-
-
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
-
-updater = Updater(BOT_TOKEN)
-dispatcher = updater.dispatcher
 
 
 def on_start(update: Update, context: CallbackContext) -> None:
@@ -82,16 +98,12 @@ def unknown(update: Update, context: CallbackContext) -> None:
     update.message.reply_text("Sorry, I didn't understand that command.")
 
 
-dispatcher.add_handler(CommandHandler('start', on_start))
-dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), get_meaning))
-dispatcher.add_handler(MessageHandler(Filters.command, unknown))
-dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))
+def set_up(BOT_TOKEN):
+    global updater, dispatcher
+    updater = Updater(BOT_TOKEN)
+    dispatcher = updater.dispatcher
 
-PORT = int(os.environ.get('PORT', 8443))
-updater.start_webhook(listen="0.0.0.0",
-                      port=int(PORT),
-                      url_path=BOT_TOKEN,
-                      webhook_url='https://sanskritkoshbot.herokuapp.com/' + BOT_TOKEN)
-
-
-updater.idle()
+    dispatcher.add_handler(CommandHandler('start', on_start))
+    dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), get_meaning))
+    dispatcher.add_handler(MessageHandler(Filters.command, unknown))
+    dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))

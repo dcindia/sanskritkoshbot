@@ -72,13 +72,6 @@ def meaning(word):
         return "No better meaning found."
 
 
-token_file = open(r'TOKEN.txt', "r")
-BOT_TOKEN = token_file.readline()
-
-updater = Updater(BOT_TOKEN)
-dispatcher = updater.dispatcher
-
-
 def on_start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(f'Hello {update.effective_user.username}.\nJust send me the word in sanskrit of which meaning you want to know.')
 
@@ -104,10 +97,12 @@ def unknown(update: Update, context: CallbackContext) -> None:
     update.message.reply_text("Sorry, I didn't understand that command.")
 
 
-dispatcher.add_handler(CommandHandler('start', on_start))
-dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), get_meaning))
-dispatcher.add_handler(MessageHandler(Filters.command, unknown))
-dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))
+def set_up(BOT_TOKEN):
+    global updater, dispatcher
+    updater = Updater(BOT_TOKEN)
+    dispatcher = updater.dispatcher
 
-updater.start_polling()
-updater.idle()
+    dispatcher.add_handler(CommandHandler('start', on_start))
+    dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), get_meaning))
+    dispatcher.add_handler(MessageHandler(Filters.command, unknown))
+    dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))

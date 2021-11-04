@@ -58,6 +58,7 @@ def meaning(word):
             answer_row = re.sub(r'<span.*?>|</span>', '', str(answer_inside.group(1)))
             answer_row = re.findall(r'<td>(.*?)</td>', answer_row)
             answer_list = ["* " + HTMLStripper().strip(k) + "\n" for k in answer_row if k != '']
+            answer_list.insert(0, "<i><u>From Spoken Sanskrit:</u></i>\n\n")
 
             answer_string = ''.join(answer_list)
             return answer_string
@@ -65,9 +66,12 @@ def meaning(word):
         elif service.group(1) == "Hindi":
             answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
             answer = str(answer_inside.group(1))
-            answer_table = f'* {word}\n* {HTMLStripper().strip(answer)}'
+            answer_table = [f'* {word}\n', f'* {HTMLStripper().strip(answer)}\n']
+            answer_table.insert(0, "<i><u>From Hindi Dictionary:</u></i>\n\n")
+
             print(answer_table)
-            return answer_table
+            answer_string = ''.join(answer_table)
+            return answer_string
 
     else:
         return "No better meaning found."

@@ -35,6 +35,7 @@ class HTMLStripper(HTMLParser):
 
 
 def meaning(word):
+    # TODO: Feature to display meaning from preferred dictionary
     word = str.lower(word)
     transformed_word = urllib.parse.quote(word)
     url = RAW_URL + transformed_word
@@ -58,7 +59,7 @@ def meaning(word):
             answer_row = re.sub(r'<span.*?>|</span>', '', str(answer_inside.group(1)))
             answer_row = re.findall(r'<td>(.*?)</td>', answer_row)
             answer_list = ["* " + HTMLStripper().strip(k) + "\n" for k in answer_row if k != '']
-            answer_list.insert(0, "<i><u>From Spoken Sanskrit:</u></i>\n\n")
+            answer_list.append("\n<i><u>From Spoken Sanskrit</u></i>")
 
             answer_string = ''.join(answer_list)
             return answer_string
@@ -76,7 +77,7 @@ def meaning(word):
             answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
             answer = str(answer_inside.group(1))
             answer_table = [f'* {word}\n', f'* {HTMLStripper().strip(answer)}\n']
-            answer_table.insert(0, "<i><u>From Hindi Dictionary:</u></i>\n\n")
+            answer_table.append("\n<i><u>From Hindi Dictionary</u></i>")
 
             print(answer_table)
             answer_string = ''.join(answer_table)

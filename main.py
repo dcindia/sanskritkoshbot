@@ -63,6 +63,15 @@ def meaning(word):
             answer_string = ''.join(answer_list)
             return answer_string
 
+        elif service.group(1) == "Shabda Sagara":
+            answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
+            answer_list = ["* " + k.strip() for k in str(answer_inside.group(1)).split("<BR>") if not k.startswith("E.")]
+            if len(answer_list) > 5:
+                answer_list = answer_list[:6]
+            answer_list.append("\n<i><u>From Shabda Sagara</u></i>")
+            answer_string = '\n'.join(answer_list)
+            return answer_string
+
         elif service.group(1) == "Hindi":
             answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
             answer = str(answer_inside.group(1))

@@ -5,7 +5,7 @@ import urllib.parse
 import re
 import os
 import logging
-from telegram import Update
+from telegram import Update, MessageEntity
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler
 
@@ -14,6 +14,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 RAW_URL = "http://kosha.sanskrit.today/word/"
+SUPPORTED_DICTIONARIES = ['Spoken Sanskrit', 'Shabda Sagara', 'Hindi']
 
 
 class HTMLStripper(HTMLParser):
@@ -34,57 +35,88 @@ class HTMLStripper(HTMLParser):
         return self.text.getvalue()
 
 
-def meaning(word):
-    # TODO: Feature to display meaning from preferred dictionary
-    word = str.lower(word)
-    transformed_word = urllib.parse.quote(word)
-    url = RAW_URL + transformed_word
+class Meaning:
 
-    print("**************************************************************************")
-    print(url)
-    headers = {"User-Agent": "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"}
-    request = urllib.request.Request(url, headers=headers)
-    instance = urllib.request.urlopen(request, timeout=3)
-    result = instance.read().decode('utf-8')
-    file = open(r"result.html", 'w')
-    file.write(urllib.parse.unquote(str(result)))
-    extracted_parts = re.findall(r'<h5>.*?</h5>.*?div class="card-body".*?</div>', str(result), re.DOTALL)
+    def fetch(self, word, preference=None):
+        # TODO: Feature to display meaning from preferred dictionary
+        word = str.lower(word)
+        transformed_word = urllib.parse.quote(word)
+        url = RAW_URL + transformed_word
 
-    for part in extracted_parts:
-        service = re.search(r'<h5>(.*?)</h5>', part)
-        print(service.group(1))
+        print("**************************************************************************")
+        print("Searched for:", word)
 
-        if service.group(1) == "Spoken Sanskrit":
-            answer_inside = re.search(r'<table>.*?<tr>(.*?)</tr>.*?</table>', part)
-            answer_row = re.sub(r'<span.*?>|</span>', '', str(answer_inside.group(1)))
-            answer_row = re.findall(r'<td>(.*?)</td>', answer_row)
-            answer_list = ["* " + HTMLStripper().strip(k) + "\n" for k in answer_row if k != '']
-            answer_list.append("\n<i><u>From Spoken Sanskrit</u></i>")
+        headers = {"User-Agent": "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"}
+        request = urllib.request.Request(url, headers=headers)
+        instance = urllib.request.urlopen(request, timeout=3)
+        result = instance.read().decode('utf-8')
+        with open(r"result.html", 'w') as file:
+            file.write(urllib.parse.unquote(str(result)))
 
-            answer_string = ''.join(answer_list)
-            return answer_string
+        extracted_parts = re.findall(r'<h5>.*?</h5>.*?div class="card-body".*?</div>', str(result), re.DOTALL)
+        available_dict = {}
 
-        elif service.group(1) == "Shabda Sagara":
-            answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
-            answer_list = ["* " + k.strip() for k in str(answer_inside.group(1)).split("<BR>") if not k.startswith("E.")]
-            if len(answer_list) > 5:
-                answer_list = answer_list[:6]
-            answer_list.append("\n<i><u>From Shabda Sagara</u></i>")
-            answer_string = '\n'.join(answer_list)
-            return answer_string
+        for part in extracted_parts:
+            service = re.search(r'<h5>(.*?)</h5>', part).group(1)
 
-        elif service.group(1) == "Hindi":
-            answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
-            answer = str(answer_inside.group(1))
-            answer_table = [f'* {word}\n', f'* {HTMLStripper().strip(answer)}\n']
-            answer_table.append("\n<i><u>From Hindi Dictionary</u></i>")
+            if service not in SUPPORTED_DICTIONARIES:
+                continue
 
-            print(answer_table)
-            answer_string = ''.join(answer_table)
-            return answer_string
+            if service in available_dict.keys():
+                continue
 
-    else:
-        return "No better meaning found."
+            if service == "Spoken Sanskrit":
+                available_dict[service] = self.spoken_sanskrit(word, part)
+
+            elif service == "Shabda Sagara":
+                available_dict[service] = self.shabda_sagara(word, part)
+
+            elif service == "Hindi":
+                available_dict[service] = self.hindi_dict(word, part)
+
+        else:
+
+            if not available_dict:
+                return "No better meaning found."
+            else:
+                if preference is not None and preference in available_dict.keys():
+                    return available_dict[preference]
+                else:
+                    for dict in SUPPORTED_DICTIONARIES:
+                        if dict in available_dict.keys():
+                            return available_dict[dict]
+
+    def spoken_sanskrit(self, word, part):
+        answer_inside = re.search(r'<table>.*?<tr>(.*?)</tr>.*?</table>', part)
+        answer_row = re.sub(r'<span.*?>|</span>', '', str(answer_inside.group(1)))
+        answer_row = re.findall(r'<td>(.*?)</td>', answer_row)
+        answer_list = ["* " + HTMLStripper().strip(k) + "\n" for k in answer_row if k != '']
+        answer_list.append("\n<i><u>From Spoken Sanskrit</u></i>")
+
+        answer_string = ''.join(answer_list)
+        return answer_string
+
+    def shabda_sagara(self, word, part):
+        answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
+        answer_list = ["* " + k.strip() for k in str(answer_inside.group(1)).split("<BR>") if not k.startswith("E.")]
+        if len(answer_list) > 5:
+            answer_list = answer_list[:6]
+        answer_list.append("\n<i><u>From Shabda Sagara</u></i>")
+        answer_string = '\n'.join(answer_list)
+        return answer_string
+
+    def hindi_dict(self, word, part):
+        answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
+        answer = str(answer_inside.group(1))
+        answer_table = [f'* {word}\n', f'* {HTMLStripper().strip(answer)}\n']
+        answer_table.append("\n<i><u>From Hindi Dictionary</u></i>")
+
+        print(answer_table)
+        answer_string = ''.join(answer_table)
+        return answer_string
+
+
+meaning = Meaning()
 
 
 def on_start(update: Update, context: CallbackContext) -> None:
@@ -92,7 +124,21 @@ def on_start(update: Update, context: CallbackContext) -> None:
 
 
 def get_meaning(update: Update, context: CallbackContext) -> None:
-    update.message.reply_html(meaning(update.message.text))
+
+    search_term = update.message.text
+    preference = None
+
+    if update.message.entities and update.message.entities[0].type == MessageEntity.BOT_COMMAND:
+        command = update.message.text[1: update.message.entities[0].length].split('@')[0]
+        search_term = " ".join(context.args)
+        if command.startswith("sh"):
+            preference = "Shabda Sagara"
+        elif command.startswith("sp"):
+            preference = "Spoken Sanskrit"
+        elif command.startswith("hi"):
+            preference = "Hindi"
+
+    update.message.reply_html(meaning.fetch(search_term, preference))
 
 
 def get_meaning_inline(update: Update, context: CallbackContext) -> None:
@@ -100,7 +146,7 @@ def get_meaning_inline(update: Update, context: CallbackContext) -> None:
     if not query:
         return
     results = list()
-    _meaning = meaning(query)
+    _meaning = meaning.fetch(query)
     results.append(InlineQueryResultArticle(id=query,
                                             title="Click to send",
                                             description=_meaning.splitlines()[-1],
@@ -118,6 +164,7 @@ def set_up(BOT_TOKEN):
     dispatcher = updater.dispatcher
 
     dispatcher.add_handler(CommandHandler('start', on_start))
+    dispatcher.add_handler(CommandHandler(['sh', 'sp', 'hi'], get_meaning))
     dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), get_meaning))
     dispatcher.add_handler(MessageHandler(Filters.command, unknown))
     dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))

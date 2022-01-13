@@ -77,7 +77,7 @@ class Meaning:
         else:
 
             if not available_dict:
-                return "No better meaning found."
+                return "कोई बेहतर अर्थ नहीं पाया।"
             else:
                 if preference is not None and preference in available_dict.keys():
                     return available_dict[preference]
@@ -120,7 +120,24 @@ meaning = Meaning()
 
 
 def on_start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(f'Hello {update.effective_user.username}.\nJust send me the word in sanskrit of which meaning you want to know.')
+    help_message = f"""
+<i>नमस्कार {update.effective_user.username}!</i>
+संस्कृत शब्द का मतलब जानने के लिए आप केवल अपने शब्द को लिख कर मुझे भेज सकते हैं।
+
+शब्दकोष को उपलब्धि और उपयोगिता के आधार पर चुना जाता है। अगर आपको अपने पसंदीदा शब्दकोष से अर्थ जानना है तो आप <code>\"/&lt;lang_id&gt;&lt;शब्द&gt;\"</code> का इस्तेमाल कर सकते हैं।
+तत्काल में आप निम्नलिखित शब्दकोष में से चुन सकते हैं:
+1. sh - Shabda Sagara
+2. sp - Spoken Sanskrit
+3. hi - hindi
+उदाहरण : \"<code>/sh कृति</code>\"
+
+आप इसे सीधे किसी भी समूह या निजी लिखचित में भी इस्तेमाल कर सकते हैं। इसके लिए आपको मुझे बुला कर अपना शब्द देना होगा
+जैसे \"<code>@sanskritkoshbot कृति</code>\"
+इतना लिखने मात्र पर आपके शब्द का अर्थ कुछ पल के अंदर सन्देश के ऊपर दिखा दिया जायेगा।
+
+इस संदेश को दोबारा पढ़ने के लिए आप /start या /help का इस्तेमाल कर सकते हैं।
+"""
+    update.message.reply_html(help_message)
 
 
 def get_meaning(update: Update, context: CallbackContext) -> None:
@@ -155,7 +172,7 @@ def get_meaning_inline(update: Update, context: CallbackContext) -> None:
 
 
 def unknown(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text("Sorry, I didn't understand that command.")
+    update.message.reply_text("माफ़ कीजिये ! आपकी मांग मुझे समझ नहीं आई।")
 
 
 def set_up(BOT_TOKEN):
@@ -163,7 +180,7 @@ def set_up(BOT_TOKEN):
     updater = Updater(BOT_TOKEN)
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(CommandHandler('start', on_start))
+    dispatcher.add_handler(CommandHandler(['start', 'help'], on_start))
     dispatcher.add_handler(CommandHandler(['sh', 'sp', 'hi'], get_meaning))
     dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), get_meaning))
     dispatcher.add_handler(MessageHandler(Filters.command, unknown))

@@ -8,6 +8,7 @@ import logging
 from telegram import Update, MessageEntity
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler
+from indic_transliteration import sanscript, detect
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -39,12 +40,15 @@ class Meaning:
 
     def fetch(self, word, preference=None):
         # TODO: Feature to display meaning from preferred dictionary
-        word = str.lower(word)
-        transformed_word = urllib.parse.quote(word)
-        url = RAW_URL + transformed_word
-
         print("**************************************************************************")
         print("Searched for:", word)
+
+        word = str.lower(word)
+        transformed_word = urllib.parse.quote(word)  # remove html tags present, if any
+        if detect.detect(word) == sanscript.DEVANAGARI:
+            # replaces anusvara with corresponding pancham varna
+            transformed_word = sanscript.SCHEMES[sanscript.DEVANAGARI].fix_lazy_anusvaara(transformed_word, omit_sam=True, omit_yrl=True)
+        url = RAW_URL + transformed_word
 
         headers = {"User-Agent": "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"}
         request = urllib.request.Request(url, headers=headers)

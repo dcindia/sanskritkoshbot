@@ -5,7 +5,7 @@ import urllib.parse
 import re
 import os
 import logging
-from telegram import Update, MessageEntity
+from telegram import InputMessageContent, Update, MessageEntity
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler
 from indic_transliteration import sanscript, detect
@@ -48,7 +48,6 @@ class Meaning:
             word = sanscript.SCHEMES[sanscript.DEVANAGARI].fix_lazy_anusvaara(word, omit_sam=True, omit_yrl=True)
         transformed_word = urllib.parse.quote(word)  # remove html tags present, if any
         url = RAW_URL + transformed_word
-        print(url)
 
         headers = {"User-Agent": "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"}
         request = urllib.request.Request(url, headers=headers)
@@ -83,9 +82,11 @@ class Meaning:
             if not available_dict:
                 return None, "कोई बेहतर अर्थ नहीं पाया।"
             else:
-                if preference is not None and preference in available_dict.keys():
+                if preference == "All":   # for inline mode
+                    return available_dict
+                if preference is not None and preference in available_dict.keys():  # if preference set and available also
                     return available_dict[preference]
-                else:
+                else:  # if preference not found or not set at all
                     for dict in SUPPORTED_DICTIONARIES:
                         if dict in available_dict.keys():
                             return available_dict[dict]
@@ -169,21 +170,21 @@ def get_meaning_inline(update: Update, context: CallbackContext) -> None:
     if not query:
         return
     results = list()
-    _answer, source = meaning.fetch(query)
+    _answer = meaning.fetch(query, preference="All")
 
-    title = source
+    if str(type(_answer)) == "<class 'dict'>":  # meaning.fetch() returns dict if preference set to "All" and atleast one meaning found
+        for service in _answer.keys():
+            id = service
+            title = service
+            # BUG: For spoken sanskrit, searching english word shows same word as meaning, but actual meaning is at another line
+            description = _answer[service][0][-1]  # for particular dict, first part is anwer_list, and last line of that is description
+            source = _answer[service][1]
+            message = InputTextMessageContent(''.join(_answer[service][0]) + "\n" + f"<i><u>📖 {source}</u></i>", parse_mode="HTML")
+            results.append(InlineQueryResultArticle(id=id, title=title, description=description, input_message_content=message))
 
-    if _answer is None:
-        description = ''
-        answer = source
-    else:
-        description = _answer[-1]
-        answer = ''.join(_answer) + "\n" + f"<i><u>📖 {source}</u></i>"
+    else:  # meaning.fetch() returns tuple if there is an error
+        results.append(InlineQueryResultArticle(id="none", title=_answer[1], input_message_content=InputTextMessageContent(_answer[1])))
 
-    results.append(InlineQueryResultArticle(id=query,
-                                            title=title,
-                                            description=description,
-                                            input_message_content=InputTextMessageContent(answer, parse_mode="HTML")))
     context.bot.answer_inline_query(update.inline_query.id, results)
 
 

@@ -94,8 +94,8 @@ class Meaning:
         answer_inside = re.search(r'<table>.*?<tr>(.*?)</tr>.*?</table>', part)
         answer_row = re.sub(r'<span.*?>|</span>', '', str(answer_inside.group(1)))
         answer_row = re.findall(r'<td>(.*?)</td>', answer_row)
-        answer_list = ["* " + HTMLStripper().strip(k) + "\n" for k in answer_row if (not None) and (not k.isspace())]
-        answer_list.append("\n<i><u>From Spoken Sanskrit</u></i>")
+        answer_list = ["* " + HTMLStripper().strip(k) + "\n" for k in answer_row if (k != '') and (not k.isspace())]
+        # answer_list.append("\n<i><u>From Spoken Sanskrit</u></i>")
 
         answer_string = ''.join(answer_list)
         return answer_string

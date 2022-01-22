@@ -43,11 +43,12 @@ class Meaning:
         print("Searched for:", word)
 
         word = str.lower(word)
-        transformed_word = urllib.parse.quote(word)  # remove html tags present, if any
         if detect.detect(word) == sanscript.DEVANAGARI:
             # replaces anusvara with corresponding pancham varna
-            transformed_word = sanscript.SCHEMES[sanscript.DEVANAGARI].fix_lazy_anusvaara(transformed_word, omit_sam=True, omit_yrl=True)
+            word = sanscript.SCHEMES[sanscript.DEVANAGARI].fix_lazy_anusvaara(word, omit_sam=True, omit_yrl=True)
+        transformed_word = urllib.parse.quote(word)  # remove html tags present, if any
         url = RAW_URL + transformed_word
+        print(url)
 
         headers = {"User-Agent": "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"}
         request = urllib.request.Request(url, headers=headers)
@@ -67,7 +68,7 @@ class Meaning:
 
             if service in available_dict.keys():
                 continue
-            # TODO: Replace word with transformed_word
+
             if service == "Spoken Sanskrit":
                 available_dict[service] = self.spoken_sanskrit(word, part)
 

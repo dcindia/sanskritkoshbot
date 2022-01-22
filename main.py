@@ -39,7 +39,6 @@ class HTMLStripper(HTMLParser):
 class Meaning:
 
     def fetch(self, word, preference=None):
-        # TODO: Feature to display meaning from preferred dictionary
         print("**************************************************************************")
         print("Searched for:", word)
 
@@ -68,7 +67,7 @@ class Meaning:
 
             if service in available_dict.keys():
                 continue
-
+            # TODO: Replace word with transformed_word
             if service == "Spoken Sanskrit":
                 available_dict[service] = self.spoken_sanskrit(word, part)
 
@@ -81,7 +80,7 @@ class Meaning:
         else:
 
             if not available_dict:
-                return "कोई बेहतर अर्थ नहीं पाया।"
+                return None, "कोई बेहतर अर्थ नहीं पाया।"
             else:
                 if preference is not None and preference in available_dict.keys():
                     return available_dict[preference]
@@ -96,28 +95,25 @@ class Meaning:
         answer_row = re.findall(r'<td>(.*?)</td>', answer_row)
         answer_list = ["* " + HTMLStripper().strip(k) + "\n" for k in answer_row if (k != '') and (not k.isspace())]
         # answer_list.append("\n<i><u>From Spoken Sanskrit</u></i>")
-
-        answer_string = ''.join(answer_list)
-        return answer_string
+        # answer_string = ''.join(answer_list)
+        return answer_list, "Spoken Sanskrit"
 
     def shabda_sagara(self, word, part):
         answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
-        answer_list = ["* " + k.strip() for k in str(answer_inside.group(1)).split("<BR>") if not k.startswith("E.")]
+        answer_list = ["* " + k.strip() + '\n' for k in str(answer_inside.group(1)).split("<BR>") if not k.startswith("E.")]
         if len(answer_list) > 5:
             answer_list = answer_list[:6]
-        answer_list.append("\n<i><u>From Shabda Sagara</u></i>")
-        answer_string = '\n'.join(answer_list)
-        return answer_string
+        # answer_list.append("\n<i><u>From Shabda Sagara</u></i>")
+        # answer_string = ''.join(answer_list)
+        return answer_list, "Shabda Sagara"
 
     def hindi_dict(self, word, part):
         answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
         answer = str(answer_inside.group(1))
-        answer_table = [f'* {word}\n', f'* {HTMLStripper().strip(answer)}\n']
-        answer_table.append("\n<i><u>From Hindi Dictionary</u></i>")
-
-        print(answer_table)
-        answer_string = ''.join(answer_table)
-        return answer_string
+        answer_list = [f'* {word}\n', f'* {HTMLStripper().strip(answer)}\n']
+        # answer_table.append("\n<i><u>From Hindi Dictionary</u></i>")
+        # answer_string = ''.join(answer_list)
+        return answer_list, "Hindi Dictionary"
 
 
 meaning = Meaning()
@@ -159,7 +155,12 @@ def get_meaning(update: Update, context: CallbackContext) -> None:
         elif command.startswith("hi"):
             preference = "Hindi"
 
-    update.message.reply_html(meaning.fetch(search_term, preference))
+    answer, source = meaning.fetch(search_term, preference)
+    if answer is None:
+        answer_html = source
+    else:
+        answer_html = ''.join(answer) + "\n" + f"<i><u>📖 {source}</u></i>"
+    update.message.reply_html(answer_html)
 
 
 def get_meaning_inline(update: Update, context: CallbackContext) -> None:
@@ -167,11 +168,21 @@ def get_meaning_inline(update: Update, context: CallbackContext) -> None:
     if not query:
         return
     results = list()
-    _meaning = meaning.fetch(query)
+    _answer, source = meaning.fetch(query)
+
+    title = source
+
+    if _answer is None:
+        description = ''
+        answer = source
+    else:
+        description = _answer[-1]
+        answer = ''.join(_answer) + "\n" + f"<i><u>📖 {source}</u></i>"
+
     results.append(InlineQueryResultArticle(id=query,
-                                            title="Click to send",
-                                            description=_meaning.splitlines()[-1],
-                                            input_message_content=InputTextMessageContent(_meaning, parse_mode="HTML")))
+                                            title=title,
+                                            description=description,
+                                            input_message_content=InputTextMessageContent(answer, parse_mode="HTML")))
     context.bot.answer_inline_query(update.inline_query.id, results)
 
 

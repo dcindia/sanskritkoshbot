@@ -199,6 +199,6 @@ def set_up(BOT_TOKEN):
 
     dispatcher.add_handler(CommandHandler(['start', 'help'], on_start))
     dispatcher.add_handler(CommandHandler(['sh', 'sp', 'hi'], get_meaning))
-    dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), get_meaning))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~(Filters.via_bot(allow_empty=True) | Filters.command), get_meaning))
     dispatcher.add_handler(MessageHandler(Filters.command, unknown))
     dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))

@@ -147,6 +147,11 @@ def get_meaning(update: Update, context: CallbackContext) -> None:
     search_term = update.message.text
     preference = None
 
+    print(context)
+    if context.args == []:
+        update.message.reply_text("कृपया, मुझे कोई शब्द प्रदान करें।")
+        return
+
     if update.message.entities and update.message.entities[0].type == MessageEntity.BOT_COMMAND:
         command = update.message.text[1: update.message.entities[0].length].split('@')[0]
         search_term = " ".join(context.args)
@@ -198,7 +203,7 @@ def set_up(BOT_TOKEN):
     dispatcher = updater.dispatcher
 
     dispatcher.add_handler(CommandHandler(['start', 'help'], on_start))
-    dispatcher.add_handler(CommandHandler(['sh', 'sp', 'hi'], get_meaning))
+    dispatcher.add_handler(CommandHandler(['arth', 'sh', 'sp', 'hi'], get_meaning))
     dispatcher.add_handler(MessageHandler(Filters.text & ~(Filters.via_bot(allow_empty=True) | Filters.command), get_meaning))
-    dispatcher.add_handler(MessageHandler(Filters.command, unknown))
+    dispatcher.add_handler(MessageHandler(Filters.command & ~Filters.chat_type.groups, unknown))
     dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))

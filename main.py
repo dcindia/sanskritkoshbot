@@ -1,7 +1,7 @@
 from html.parser import HTMLParser
 from io import StringIO
-import urllib.request
 import urllib.parse
+from htmldom import HtmlDom
 import re
 import os
 import logging
@@ -31,9 +31,8 @@ class HTMLStripper(HTMLParser):
         return super().handle_data(data)
 
     def strip(self, html_text):
-        html_text = str.strip(html_text)
         self.feed(html_text)
-        return self.text.getvalue()
+        return self.text.getvalue().strip()
 
 
 class Meaning:
@@ -49,18 +48,13 @@ class Meaning:
         transformed_word = urllib.parse.quote(word)  # remove html tags present, if any
         url = RAW_URL + transformed_word
 
-        headers = {"User-Agent": "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"}
-        request = urllib.request.Request(url, headers=headers)
-        instance = urllib.request.urlopen(request, timeout=3)
-        result = instance.read().decode('utf-8')
-        with open(r"result.html", 'w') as file:
-            file.write(urllib.parse.unquote(str(result)))
+        dom = HtmlDom(url).createDom()
 
-        extracted_parts = re.findall(r'<h5>.*?</h5>.*?div class="card-body".*?</div>', str(result), re.DOTALL)
+        extracted_parts = dom.find("section#word div.card-header")
         available_dict = {}
 
         for part in extracted_parts:
-            service = re.search(r'<h5>(.*?)</h5>', part).group(1)
+            service = part.find("h5").text()
 
             if service not in SUPPORTED_DICTIONARIES:
                 continue
@@ -92,17 +86,17 @@ class Meaning:
                             return available_dict[dict]
 
     def spoken_sanskrit(self, word, part):
-        answer_inside = re.search(r'<table>.*?<tr>(.*?)</tr>.*?</table>', part)
-        answer_row = re.sub(r'<span.*?>|</span>', '', str(answer_inside.group(1)))
-        answer_row = re.findall(r'<td>(.*?)</td>', answer_row)
+        siblings = part.siblings(".card-body").find("table").find("tr").first().find("td")
+        answer_row = [s.text() for s in siblings]
         answer_list = ["* " + HTMLStripper().strip(k) + "\n" for k in answer_row if (k != '') and (not k.isspace())]
         # answer_list.append("\n<i><u>From Spoken Sanskrit</u></i>")
         # answer_string = ''.join(answer_list)
         return answer_list, "Spoken Sanskrit"
 
     def shabda_sagara(self, word, part):
-        answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
-        answer_list = ["* " + k.strip() + '\n' for k in str(answer_inside.group(1)).split("<BR>") if not k.startswith("E.")]
+        sibling = part.siblings(".card-body").find("p.card-text").first().html()
+        answer_inside = re.search(r'<p class="card-text">(.*?)</p>', str(sibling), re.DOTALL)
+        answer_list = ["* " + HTMLStripper().strip(k) + '\n' for k in answer_inside.group(1).split('<br>')]
         if len(answer_list) > 5:
             answer_list = answer_list[:6]
         # answer_list.append("\n<i><u>From Shabda Sagara</u></i>")
@@ -110,8 +104,8 @@ class Meaning:
         return answer_list, "Shabda Sagara"
 
     def hindi_dict(self, word, part):
-        answer_inside = re.search(r'<p class="card-text">(.*?)</p>', part)
-        answer = str(answer_inside.group(1))
+        sibling = part.siblings(".card-body").find("p.card-text").first()
+        answer = sibling.text()
         answer_list = [f'* {word}\n', f'* {HTMLStripper().strip(answer)}\n']
         # answer_table.append("\n<i><u>From Hindi Dictionary</u></i>")
         # answer_string = ''.join(answer_list)
@@ -147,7 +141,6 @@ def get_meaning(update: Update, context: CallbackContext) -> None:
     search_term = update.message.text
     preference = None
 
-    print(context)
     if context.args == []:
         update.message.reply_text("कृपया, मुझे कोई शब्द प्रदान करें।")
         return

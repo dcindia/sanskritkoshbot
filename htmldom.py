@@ -344,6 +344,7 @@ class HtmlDom:
                 request = urllib.request.Request(self.baseURL, headers=headers)
                 response = urllib.request.urlopen(request, timeout=3)
                 data = response.read().decode(self.getEncoding(response))
+                data = re.sub(r'<span.*?>|</span>', '', data)  # forcefully removed, causing problems in spoken_sanskrit
                 name, extension = os.path.splitext(self.baseURL)
                 if extension.lower().strip() == ".xml":
                     self.xml_file = True

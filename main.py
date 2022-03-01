@@ -87,7 +87,7 @@ class Meaning:
 
     def spoken_sanskrit(self, word, part):
         siblings = part.siblings(".card-body").find("table").find("tr").first().find("td")
-        answer_row = [s.text() for s in siblings]
+        answer_row = [s.text().replace('\n', '') for s in siblings]
         answer_list = ["* " + HTMLStripper().strip(k) + "\n" for k in answer_row if (k != '') and (not k.isspace())]
         # answer_list.append("\n<i><u>From Spoken Sanskrit</u></i>")
         # answer_string = ''.join(answer_list)

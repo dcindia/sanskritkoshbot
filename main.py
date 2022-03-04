@@ -138,8 +138,7 @@ def get_meaning_inline(update: Update, context: CallbackContext) -> None:
         for service in _answer.keys():
             id = service
             title = service
-            # BUG: For spoken sanskrit, searching english word shows same word as meaning, but actual meaning is at another line
-            description = _answer[service][0][-1]  # for particular dict, first part is anwer_list, and last line of that is description
+            description = "".join(_answer[service][0][1:3])  # for particular dict, first part is anwer_list
             source = _answer[service][1]
             message = InputTextMessageContent(''.join(_answer[service][0]) + "\n" + f"<i><u>📖 {source}</u></i>", parse_mode="HTML")
             results.append(InlineQueryResultArticle(id=id, title=title, description=description, input_message_content=message))

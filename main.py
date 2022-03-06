@@ -1,4 +1,5 @@
 from crypt import methods
+import os
 import logging
 import urllib.parse
 from flask import Flask
@@ -9,15 +10,6 @@ from indic_transliteration import sanscript, detect
 from htmldom import HtmlDom
 import kosha
 
-webapp = Flask(__name__)
-
-
-@webapp.route('/')
-def index_page():
-    return "Hello World!"
-
-
-webapp.run()
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)

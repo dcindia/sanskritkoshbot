@@ -1,5 +1,7 @@
+from crypt import methods
 import logging
 import urllib.parse
+from flask import Flask
 from telegram import InputMessageContent, Update, MessageEntity
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler
@@ -7,6 +9,12 @@ from indic_transliteration import sanscript, detect
 from htmldom import HtmlDom
 import kosha
 
+webapp = Flask(__name__)
+
+
+@webapp.route('/')
+def index_page():
+    return "Hello World!"
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)

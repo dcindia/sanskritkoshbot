@@ -1,14 +1,25 @@
 from crypt import methods
 import os
+import sys
 import logging
+from turtle import update
 import urllib.parse
-from flask import Flask
-from telegram import InputMessageContent, Update, MessageEntity
+from flask import Flask, request
+from telegram import InputMessageContent, Update, MessageEntity, Bot
 from telegram import InlineQueryResultArticle, InputTextMessageContent
+import telegram
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler
 from indic_transliteration import sanscript, detect
 from htmldom import HtmlDom
 import kosha
+
+WebApp = Flask(__name__)
+
+
+@WebApp.route('/')
+def index_page():
+    print('index')
+    return "Hello World !"
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -167,3 +178,34 @@ def set_up(BOT_TOKEN):
     dispatcher.add_handler(MessageHandler(Filters.text & ~(Filters.via_bot(allow_empty=True) | Filters.command), get_meaning))
     dispatcher.add_handler(MessageHandler(Filters.command & ~Filters.chat_type.groups, unknown))
     dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))
+
+
+if __name__ == "__main__":
+
+    arguments = sys.argv[1:]
+    global BOT_TOKEN
+
+    if "heroku" in arguments:
+        # webhook method for running on servers
+        BOT_TOKEN = os.environ.get('BOT_TOKEN')
+        set_up(BOT_TOKEN)
+
+        updater.bot.set_webhook('https://test-sanskritkoshbot.herokuapp.com/telegram/' + BOT_TOKEN)
+
+    else:
+        # polling method for testing on local machine
+        token_file = open(r"TOKEN.txt", "r")
+        BOT_TOKEN = token_file.readline()
+        set_up(BOT_TOKEN)
+        updater.bot.delete_webhook()  # remove webhook for local testing
+        updater.start_polling()
+
+    @WebApp.route('/telegram/', methods=['GET', 'POST'])
+    def response():
+        print("got response !!")
+        req = request.get_json()
+        update = telegram.Update.de_json(req, updater.bot)
+        updater.update_queue.put(update)
+
+    PORT = int(os.environ.get('PORT', 5000))
+    WebApp.run(host='0.0.0.0', port=PORT, threaded=True)

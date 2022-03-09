@@ -1,11 +1,9 @@
-from crypt import methods
 import os
 import sys
 import logging
-from turtle import update
 import urllib.parse
 from flask import Flask, request
-from telegram import InputMessageContent, Update, MessageEntity, Bot
+from telegram import InputMessageContent, Update, MessageEntity
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 import telegram
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler

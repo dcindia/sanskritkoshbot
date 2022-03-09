@@ -198,7 +198,7 @@ if __name__ == "__main__":
         updater.bot.delete_webhook()  # remove webhook for local testing
         updater.start_polling()
 
-    @WebApp.route('/telegram/', methods=['GET', 'POST'])
+    @WebApp.route('/telegram/' + BOT_TOKEN, methods=['GET', 'POST'])
     def response():
         print("got response !!")
         req = request.get_json()

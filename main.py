@@ -204,6 +204,7 @@ if __name__ == "__main__":
         req = request.get_json()
         update = telegram.Update.de_json(req, updater.bot)
         updater.update_queue.put(update)
+        return "Updated..."
 
     PORT = int(os.environ.get('PORT', 5000))
     WebApp.run(host='0.0.0.0', port=PORT, threaded=True)

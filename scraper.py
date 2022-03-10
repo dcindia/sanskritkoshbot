@@ -1,3 +1,4 @@
+"""Deals with scraping data for various dictionaries"""
 import re
 from io import StringIO
 from html.parser import HTMLParser

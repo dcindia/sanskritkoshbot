@@ -1,24 +1,12 @@
-import os
-import sys
+"""Deals with telegram interaction and meaning processing"""
 import logging
 import urllib.parse
-from flask import Flask, request
-from telegram import InputMessageContent, Update, MessageEntity
+from telegram import Update, MessageEntity
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-import telegram
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler
+from telegram.ext import CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler
 from indic_transliteration import sanscript, detect
 from htmldom import HtmlDom
-import kosha
-
-WebApp = Flask(__name__)
-
-
-@WebApp.route('/')
-def index_page():
-    print('index')
-    return "Hello World !"
-
+import scraper as sc
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +15,7 @@ RAW_URL = "http://kosha.sanskrit.today/word/"
 
 CONFIGURATION = [['sp', 'sh', 'mw', 'hindi', 'apte', 'wilson', 'yates'],  # short names
                  ['Spoken Sanskrit', 'Shabda Sagara', 'Monier Williams Cologne', 'Hindi', 'Apte', 'Wilson', 'Yates'],  # names
-                 [kosha.spoken_sanskrit, kosha.shabda_sagara, kosha.monier_wiliams, kosha.hindi_dict, kosha.apte, kosha.wilson, kosha.yates]]  # funtions
+                 [sc.spoken_sanskrit, sc.shabda_sagara, sc.monier_wiliams, sc.hindi_dict, sc.apte, sc.wilson, sc.yates]]  # funtions
 
 
 def config(operation, value=None):
@@ -165,47 +153,10 @@ def unknown(update: Update, context: CallbackContext) -> None:
     update.message.reply_text("माफ़ कीजिये ! आपकी मांग मुझे समझ नहीं आई।")
 
 
-def set_up(BOT_TOKEN):
-    global updater, dispatcher
-    updater = Updater(BOT_TOKEN)
-    dispatcher = updater.dispatcher
-
+def set_handlers(dispatcher):
     dispatcher.add_handler(CommandHandler(['start', 'help'], on_start))
     dispatcher.add_handler(CommandHandler(['kosha'], kosha_list))
     dispatcher.add_handler(CommandHandler(['arth', 'sh', 'sp', 'hi', 'apte', 'wilson', 'mw', 'yates'], get_meaning))
     dispatcher.add_handler(MessageHandler(Filters.text & ~(Filters.via_bot(allow_empty=True) | Filters.command), get_meaning))
     dispatcher.add_handler(MessageHandler(Filters.command & ~Filters.chat_type.groups, unknown))
     dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))
-
-
-if __name__ == "__main__":
-
-    arguments = sys.argv[1:]
-    global BOT_TOKEN
-
-    if "heroku" in arguments:
-        # webhook method for running on servers
-        BOT_TOKEN = os.environ.get('BOT_TOKEN')
-        set_up(BOT_TOKEN)
-
-        updater.bot.set_webhook('https://test-sanskritkoshbot.herokuapp.com/telegram/' + BOT_TOKEN)
-
-    else:
-        # polling method for testing on local machine
-        token_file = open(r"TOKEN.txt", "r")
-        BOT_TOKEN = token_file.readline()
-        set_up(BOT_TOKEN)
-        updater.bot.delete_webhook()  # remove webhook for local testing
-        updater.start_polling()
-
-    @WebApp.route('/telegram/' + BOT_TOKEN, methods=['GET', 'POST'])
-    def response():
-        print("got response !!")
-        req = request.get_json()
-        update = telegram.Update.de_json(req, updater.bot)
-        print(update)
-        dispatcher.update_queue.put(update)
-        return "Updated..."
-
-    PORT = int(os.environ.get('PORT', 5000))
-    WebApp.run(host='0.0.0.0', port=PORT, threaded=True)

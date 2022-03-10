@@ -42,7 +42,7 @@ if __name__ == "__main__":
     @WebApp.route('/')
     def index_page():
         print('index')
-        return r"<a href=https://t.me/sanskritkoshbot>Click here to use me on Telegram !</a>"
+        return r"<a href=https://telegram.me/sanskritkoshbot>Click here to use me on Telegram !</a>"
 
     @WebApp.route('/telegram/' + BOT_TOKEN, methods=['GET', 'POST'])
     def response():

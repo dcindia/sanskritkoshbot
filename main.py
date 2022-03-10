@@ -204,7 +204,7 @@ if __name__ == "__main__":
         req = request.get_json()
         update = telegram.Update.de_json(req, updater.bot)
         print(update)
-        updater.update_queue.put(update)
+        dispatcher.update_queue.put(update)
         return "Updated..."
 
     PORT = int(os.environ.get('PORT', 5000))

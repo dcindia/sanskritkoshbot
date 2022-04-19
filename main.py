@@ -1,21 +1,21 @@
 import logging
 import urllib.parse
-from telegram import InputMessageContent, Update, MessageEntity
+import urllib.request
+from telegram import Update, MessageEntity
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler
 from indic_transliteration import sanscript, detect
-from htmldom import HtmlDom
-import kosha
-
+from lxml import html
+import scraper as sc
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 RAW_URL = "http://kosha.sanskrit.today/word/"
 
-CONFIGURATION = [['sp', 'sh', 'mw', 'hindi', 'apte', 'wilson', 'yates'],  # short names
+CONFIGURATION = [['sp', 'sh', 'mw', 'hi', 'apte', 'wilson', 'yates'],  # short names
                  ['Spoken Sanskrit', 'Shabda Sagara', 'Monier Williams Cologne', 'Hindi', 'Apte', 'Wilson', 'Yates'],  # names
-                 [kosha.spoken_sanskrit, kosha.shabda_sagara, kosha.monier_wiliams, kosha.hindi_dict, kosha.apte, kosha.wilson, kosha.yates]]  # funtions
+                 [sc.spoken_sanskrit, sc.shabda_sagara, sc.monier_wiliams, sc.hindi_dict, sc.apte, sc.wilson, sc.yates]]  # funtions
 
 
 def config(operation, value=None):
@@ -47,13 +47,21 @@ def fetch_meaning(word, preference=None):
     transformed_word = urllib.parse.quote(word)  # remove html tags present, if any
     url = RAW_URL + transformed_word
 
-    dom = HtmlDom(url).createDom()
+    headers = {"User-Agent": "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"}
+    request = urllib.request.Request(url, headers=headers)
+    response = urllib.request.urlopen(request, timeout=3)
+    data = response.read().decode('UTF-8')
+    tree = html.fromstring(data)
 
-    extracted_parts = dom.find("section#word div.card-header")
+    extracted_parts = tree.findall(".//section[@id='word']//div[@class='card-header']")
     available_dict = {}
 
     for part in extracted_parts:
-        service = part.find("h5").text()
+        service = part.find("h5")
+        if service is not None:  # checks if extracted part really has <h5> tag
+            service = service.text
+        else:
+            continue
 
         if service in available_dict.keys():
             continue

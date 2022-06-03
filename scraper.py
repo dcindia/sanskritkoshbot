@@ -78,3 +78,19 @@ def monier_wiliams(word, part):
     answer_list = [f'* {line.text_content().strip()}\n\n' for line in siblings]
 
     return answer_list, "Monier Williams Dictionary"
+
+
+def monier_williams2(word, part):  # for inline mode
+    sibling = etree.tostring(part.find('../*[@class="card-body"]//p[@class="card-text"]'))
+    answer_inside = re.search(r'<p class="card-text">(.*?)</p>', str(sibling), re.DOTALL)
+    answer_list = []
+    answer_length = 0
+    for k in answer_inside.group(1).split('<br/>'):
+        answer_length += len(k)
+        if answer_length < 4000:  # default is 4096 for telegram
+            if k != '' and (not k.isspace()):
+                answer_list.append(HTMLStripper().strip(k) + '\n')
+        else:
+            break
+
+    return answer_list, "Monier Williams Dictionary"

@@ -1,4 +1,6 @@
 import logging
+from operator import contains
+import re
 import urllib.parse
 import urllib.request
 from telegram import Update, MessageEntity
@@ -13,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 RAW_URL = "http://kosha.sanskrit.today/word/"
 
-CONFIGURATION = [['sp', 'sh', 'mw', 'hi', 'apte', 'wilson', 'yates'],  # short names
-                 ['Spoken Sanskrit', 'Shabda Sagara', 'Monier Williams Cologne', 'Hindi', 'Apte', 'Wilson', 'Yates'],  # names
-                 [sc.spoken_sanskrit, sc.shabda_sagara, sc.monier_wiliams, sc.hindi_dict, sc.apte, sc.wilson, sc.yates]]  # funtions
+CONFIGURATION = [['sp', 'sh', 'mw', 'mw', 'hi', 'apte', 'wilson', 'yates'],  # short names
+                 ['Spoken Sanskrit', 'Shabda Sagara', 'Monier Williams Cologne', 'Monier Williams', 'Hindi', 'Apte', 'Wilson', 'Yates'],  # names
+                 [sc.spoken_sanskrit, sc.shabda_sagara, sc.monier_wiliams, sc.monier_williams2, sc.hindi_dict, sc.apte, sc.wilson, sc.yates]]  # funtions
 
 
 def config(operation, value=None):

@@ -1,5 +1,4 @@
 import logging
-from operator import contains
 import re
 import urllib.parse
 import urllib.request
@@ -15,23 +14,31 @@ logger = logging.getLogger(__name__)
 
 RAW_URL = "http://kosha.sanskrit.today/word/"
 
-CONFIGURATION = [['sp', 'sh', 'mw', 'mw', 'hi', 'apte', 'wilson', 'yates'],  # short names
-                 ['Spoken Sanskrit', 'Shabda Sagara', 'Monier Williams Cologne', 'Monier Williams', 'Hindi', 'Apte', 'Wilson', 'Yates'],  # names
-                 [sc.spoken_sanskrit, sc.shabda_sagara, sc.monier_wiliams, sc.monier_williams2, sc.hindi_dict, sc.apte, sc.wilson, sc.yates]]  # funtions
+CONFIGURATION = {'Spoken Sanskrit': {'name': "Spoken Sanskrit", 'short_name': "sp", 'function': sc.spoken_sanskrit},
+                 'Shabda Sagara': {'name': "Shabda Sagara", 'short_name': "sh", 'function': sc.shabda_sagara},
+                 'Monier Williams Cologne': {'name': "Monier Williams", 'short_name': "mw", 'function': sc.monier_wiliams},
+                 'Monier Williams': {'name': None, 'short_name': None, 'function': sc.monier_williams2},  # hidden for inline mode
+                 'Hindi': {'name': "Hindi", 'short_name': "hi", 'function': sc.hindi_dict},
+                 'Apte': {'name': "Apte", 'short_name': "apte", 'function': sc.apte},
+                 'Wilson': {'name': "Wilson", 'short_name': "wilson", 'function': sc.wilson},
+                 'Yates': {'name': "Yates", 'short_name': "yates", 'function': sc.yates}
+                 }
 
 
 def config(operation, value=None):
 
     def dicts(*args):
-        return CONFIGURATION[1]
+        return CONFIGURATION.keys()
 
     def name(short_name):
-        index = CONFIGURATION[0].index(short_name)
-        return CONFIGURATION[1][index]
+        for dict in CONFIGURATION:
+            if CONFIGURATION[dict]['short_name'] == short_name:
+                return dict
 
     def function(name):
-        index = CONFIGURATION[1].index(name)
-        return CONFIGURATION[2][index]
+        for dict in CONFIGURATION:
+            if dict == name:
+                return CONFIGURATION[dict]['function']
 
     mapping = {"dicts": dicts, "name": name, "function": function}
 
@@ -107,7 +114,7 @@ def on_start(update: Update, context: CallbackContext) -> None:
 
 def kosha_list(update: Update, context: CallbackContext) -> None:
     message = "<b>शब्दकोशों की सूचि:</b>\n\n"
-    sets = zip(CONFIGURATION[0], CONFIGURATION[1])
+    sets = [(CONFIGURATION[dict]['short_name'], CONFIGURATION[dict]['name']) for dict in CONFIGURATION if CONFIGURATION[dict]['name'] is not None]
     for count, set in enumerate(sets, start=1):
         message += f"{count}. {set[0]} - {set[1]}\n"
 

@@ -13,6 +13,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 RAW_URL = "http://kosha.sanskrit.today/word/"
+NOT_FOUND_MESSAGE = "कोई बेहतर अर्थ नहीं पाया।"
 
 CONFIGURATION = {'Spoken Sanskrit': {'name': "Spoken Sanskrit", 'short_name': "sp", 'function': sc.spoken_sanskrit},
                  'Shabda Sagara': {'name': "Shabda Sagara", 'short_name': "sh", 'function': sc.shabda_sagara},
@@ -45,7 +46,7 @@ def config(operation, value=None):
     return mapping[operation](value)
 
 
-def fetch_meaning(word, preference=None):
+def fetch_meaning(word) -> dict:
     print("**************************************************************************")
     print("Searched for:", word)
 
@@ -79,19 +80,7 @@ def fetch_meaning(word, preference=None):
         else:
             available_dict[service] = config("function", service)(word, part)
 
-    else:
-
-        if not available_dict:
-            return None, "कोई बेहतर अर्थ नहीं पाया।"
-        else:
-            if preference == "All":   # for inline mode
-                return available_dict
-            if preference is not None and preference in available_dict.keys():  # if preference set and available also
-                return available_dict[preference]
-            else:  # if preference not found or not set at all
-                for dict in config("dicts"):
-                    if dict in available_dict.keys():
-                        return available_dict[dict]
+    return available_dict
 
 
 def on_start(update: Update, context: CallbackContext) -> None:
@@ -136,10 +125,20 @@ def get_meaning(update: Update, context: CallbackContext) -> None:
         if not command.startswith("arth"):
             preference = config("name", command)
 
-    answer, source = fetch_meaning(search_term, preference)
-    if answer is None:
-        answer_html = source
+    meanings = fetch_meaning(search_term)
+    if not meanings:
+        answer_html = NOT_FOUND_MESSAGE
     else:
+        available_sources = meanings.keys()
+
+        if preference is not None and preference in available_sources:  # if preference set and available also
+            answer, source = meanings[preference]
+        else:  # if preference not found or not set at all
+            for dict in config("dicts"):
+                if dict in available_sources:
+                    answer, source = meanings[dict]
+                    break
+
         answer_html = ''.join(answer) + "\n" + f"<i><u>📖 {source}</u></i>"
     update.message.reply_html(answer_html)
 
@@ -149,19 +148,20 @@ def get_meaning_inline(update: Update, context: CallbackContext) -> None:
     if not query:
         return
     results = list()
-    _answer = fetch_meaning(query, preference="All")
+    meanings = fetch_meaning(query)
+    available_sources = meanings.keys()
 
-    if str(type(_answer)) == "<class 'dict'>":  # meaning.fetch() returns dict if preference set to "All" and atleast one meaning found
-        for service in _answer.keys():
+    if meanings:
+        for service in available_sources:
             id = service
             title = service
-            description = "".join(_answer[service][0][1:3])  # for particular dict, first part is anwer_list
-            source = _answer[service][1]
-            message = InputTextMessageContent(''.join(_answer[service][0]) + "\n" + f"<i><u>📖 {source}</u></i>", parse_mode="HTML")
+            description = "".join(meanings[service][0][1:3])  # for particular dict, first part is answer_list
+            source = meanings[service][1]
+            message = InputTextMessageContent(''.join(meanings[service][0]) + "\n" + f"<i><u>📖 {source}</u></i>", parse_mode="HTML")
             results.append(InlineQueryResultArticle(id=id, title=title, description=description, input_message_content=message))
 
-    else:  # meaning.fetch() returns tuple if there is an error
-        results.append(InlineQueryResultArticle(id="none", title=_answer[1], input_message_content=InputTextMessageContent(_answer[1])))
+    else:
+        results.append(InlineQueryResultArticle(id="none", title=NOT_FOUND_MESSAGE, input_message_content=InputTextMessageContent(NOT_FOUND_MESSAGE)))
 
     context.bot.answer_inline_query(update.inline_query.id, results)
 

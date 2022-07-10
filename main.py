@@ -8,6 +8,7 @@ from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandle
 from indic_transliteration import sanscript, detect
 from lxml import html
 import scraper as sc
+import analytics
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,8 +48,6 @@ def config(operation, value=None):
 
 
 def fetch_meaning(word) -> dict:
-    print("**************************************************************************")
-    print("Searched for:", word)
 
     word = str.lower(word)
     if detect.detect(word) == sanscript.DEVANAGARI:
@@ -128,6 +127,7 @@ def get_meaning(update: Update, context: CallbackContext) -> None:
     meanings = fetch_meaning(search_term)
     if not meanings:
         answer_html = NOT_FOUND_MESSAGE
+        analytics.track(update, search_term, preference)
     else:
         available_sources = meanings.keys()
 
@@ -140,6 +140,8 @@ def get_meaning(update: Update, context: CallbackContext) -> None:
                     break
 
         answer_html = ''.join(answer) + "\n" + f"<i><u>📖 {source}</u></i>"
+        analytics.track(update, search_term, preference, available_sources, source)
+
     update.message.reply_html(answer_html)
 
 
@@ -150,6 +152,7 @@ def get_meaning_inline(update: Update, context: CallbackContext) -> None:
     results = list()
     meanings = fetch_meaning(query)
     available_sources = meanings.keys()
+    analytics.track(update, query, available_sources=available_sources, inline=True)
 
     if meanings:
         for service in available_sources:
@@ -170,7 +173,7 @@ def unknown(update: Update, context: CallbackContext) -> None:
     update.message.reply_text("माफ़ कीजिये ! आपकी मांग मुझे समझ नहीं आई।")
 
 
-def set_up(BOT_TOKEN):
+def set_up(BOT_TOKEN, DETA_TOKEN):
     global updater, dispatcher
     updater = Updater(BOT_TOKEN)
     dispatcher = updater.dispatcher
@@ -181,3 +184,5 @@ def set_up(BOT_TOKEN):
     dispatcher.add_handler(MessageHandler(Filters.text & ~(Filters.via_bot(allow_empty=True) | Filters.command), get_meaning))
     dispatcher.add_handler(MessageHandler(Filters.command & ~Filters.chat_type.groups, unknown))
     dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))
+
+    analytics.initialize(DETA_TOKEN)

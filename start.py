@@ -8,7 +8,8 @@ if __name__ == "__main__":
 
     if "heroku" in arguments:
         BOT_TOKEN = os.environ.get('BOT_TOKEN')
-        main.set_up(BOT_TOKEN)
+        DETA_TOKEN = os.environ.get('DETA_TOKEN')
+        main.set_up(BOT_TOKEN, DETA_TOKEN)
 
         PORT = int(os.environ.get('PORT', 8443))
         main.updater.start_webhook(listen="0.0.0.0",
@@ -18,10 +19,11 @@ if __name__ == "__main__":
 
         main.updater.idle()
 
-    else:
-        token_file = open(r"TOKEN.txt", "r")
-        BOT_TOKEN = token_file.readline()
-        main.set_up(BOT_TOKEN)
+    else:  # For personal local testing
+        token_file = open(r"TOKEN.txt", "r")  # file(hidden) containing secret tokens
+        BOT_TOKEN = token_file.readline().strip()  # on first line
+        DETA_TOKEN = token_file.readline().strip()  # on second line
+        main.set_up(BOT_TOKEN, DETA_TOKEN)
 
         main.updater.start_polling()
         main.updater.idle()

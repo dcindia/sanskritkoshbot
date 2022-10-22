@@ -94,3 +94,17 @@ def monier_williams2(word, part):  # for inline mode
             break
 
     return answer_list, "Monier Williams Dictionary"
+
+
+def universal(word, part):
+    answer = part.find(".//p[@class='card-text']")
+    answer_list = answer.text_content().split("\n")
+
+    answer_length = 0
+    for count, line in enumerate(answer_list):
+        answer_length += len(line)
+        if answer_length > 4000:
+            return answer_list[0: count]
+
+    print(answer_list)
+    return answer_list

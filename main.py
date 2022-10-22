@@ -2,6 +2,7 @@ import logging
 import re
 import urllib.parse
 import urllib.request
+import json
 from telegram import Update, MessageEntity
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler
@@ -13,13 +14,13 @@ import analytics
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-RAW_URL = "http://kosha.sanskrit.today/word/"
+RAW_URL = "http://kosha.sanskrit.today"
 NOT_FOUND_MESSAGE = "कोई बेहतर अर्थ नहीं पाया।"
 
 CONFIGURATION = {'Spoken Sanskrit': {'name': "Spoken Sanskrit", 'short_name': "sp", 'function': sc.spoken_sanskrit},
                  'Shabda Sagara': {'name': "Shabda Sagara", 'short_name': "sh", 'function': sc.shabda_sagara},
-                 'Monier Williams Cologne': {'name': "Monier Williams", 'short_name': "mw", 'function': sc.monier_wiliams},
-                 'Monier Williams': {'name': None, 'short_name': None, 'function': sc.monier_williams2},  # hidden for inline mode
+                 'Monier Williams': {'name': "Monier Williams", 'short_name': "mw", 'function': sc.monier_wiliams},
+                 'Monier Williamsb': {'name': None, 'short_name': None, 'function': sc.monier_williams2},  # hidden for inline mode
                  'Hindi': {'name': "Hindi", 'short_name': "hi", 'function': sc.hindi_dict},
                  'Apte': {'name': "Apte", 'short_name': "apte", 'function': sc.apte},
                  'Wilson': {'name': "Wilson", 'short_name': "wilson", 'function': sc.wilson},
@@ -54,20 +55,35 @@ def fetch_meaning(word) -> dict:
         # replaces anusvara with corresponding pancham varna
         word = sanscript.SCHEMES[sanscript.DEVANAGARI].fix_lazy_anusvaara(word, omit_sam=True, omit_yrl=True)
     transformed_word = urllib.parse.quote(word)  # remove html tags present, if any
-    url = RAW_URL + transformed_word
 
+    # fetch api response in json format
+    url = RAW_URL + "/api/search?q=" + transformed_word
     headers = {"User-Agent": "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"}
     request = urllib.request.Request(url, headers=headers)
     response = urllib.request.urlopen(request, timeout=3)
+    pre_data = json.loads(response.read().decode('UTF-8'))
+
+    # check if searched word is available
+    for item in pre_data:
+        if item["string"] == word:
+            data_url = RAW_URL + item["url"]
+            break
+    else:
+        return {}  # matching word not found
+
+    # fetch meaning data, after matching word found
+    request = urllib.request.Request(data_url, headers=headers)
+    response = urllib.request.urlopen(request, timeout=3)
     data = response.read().decode('UTF-8')
+
     tree = html.fromstring(data)
 
-    extracted_parts = tree.findall(".//section[@id='word']//div[@class='card-header']")
+    extracted_parts = tree.findall(".//div[@class='card']")
     available_dict = {}
 
     for part in extracted_parts:
-        service = part.find("h5")
-        if service is not None:  # checks if extracted part really has <h5> tag
+        service = part.find(".//strong")
+        if service is not None:  # checks if extracted part really has <strong> tag
             service = service.text
         else:
             continue
@@ -77,7 +93,7 @@ def fetch_meaning(word) -> dict:
         elif service not in config("dicts"):
             continue
         else:
-            available_dict[service] = config("function", service)(word, part)
+            available_dict[service] = sc.universal(word, part)
 
     return available_dict
 
@@ -132,14 +148,16 @@ def get_meaning(update: Update, context: CallbackContext) -> None:
         available_sources = meanings.keys()
 
         if preference is not None and preference in available_sources:  # if preference set and available also
-            answer, source = meanings[preference]
+            answer = meanings[preference]
+            source = preference
         else:  # if preference not found or not set at all
             for dict in config("dicts"):
                 if dict in available_sources:
-                    answer, source = meanings[dict]
+                    answer = meanings[dict]
+                    source = dict
                     break
 
-        answer_html = ''.join(answer) + "\n" + f"<i><u>📖 {source}</u></i>"
+        answer_html = '\n'.join(answer) + "\n" + f"<i><u>📖 {source}</u></i>"
         analytics.track(update, search_term, preference, available_sources, source)
 
     update.message.reply_html(answer_html)
@@ -158,8 +176,8 @@ def get_meaning_inline(update: Update, context: CallbackContext) -> None:
         for service in available_sources:
             id = service
             title = service
-            description = "".join(meanings[service][0][1:3])  # for particular dict, first part is answer_list
-            source = meanings[service][1]
+            description = "".join(meanings[service][1:3])  # for particular dict, first part is answer_list
+            source = service
             message = InputTextMessageContent(''.join(meanings[service][0]) + "\n" + f"<i><u>📖 {source}</u></i>", parse_mode="HTML")
             results.append(InlineQueryResultArticle(id=id, title=title, description=description, input_message_content=message))
 

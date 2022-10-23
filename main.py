@@ -66,7 +66,7 @@ def fetch_meaning(word) -> dict:
     # check if searched word is available
     for item in pre_data:
         if item["string"] == word:
-            data_url = RAW_URL + item["url"]
+            data_url = urllib.parse.quote(RAW_URL + item["url"], safe="/:?=")
             break
     else:
         return {}  # matching word not found
@@ -178,7 +178,7 @@ def get_meaning_inline(update: Update, context: CallbackContext) -> None:
             title = service
             description = "".join(meanings[service][1:3])  # for particular dict, first part is answer_list
             source = service
-            message = InputTextMessageContent(''.join(meanings[service][0]) + "\n" + f"<i><u>📖 {source}</u></i>", parse_mode="HTML")
+            message = InputTextMessageContent('\n'.join(meanings[service]) + "\n" + f"<i><u>📖 {source}</u></i>", parse_mode="HTML")
             results.append(InlineQueryResultArticle(id=id, title=title, description=description, input_message_content=message))
 
     else:

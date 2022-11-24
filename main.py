@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 RAW_URL = "http://kosha.sanskrit.today"
 NOT_FOUND_MESSAGE = "कोई बेहतर अर्थ नहीं पाया।"
 
-CONFIGURATION = {'Spoken Sanskrit': {'name': "Spoken Sanskrit", 'short_name': "sp", 'function': sc.spoken_sanskrit},
-                 'Shabda Sagara': {'name': "Shabda Sagara", 'short_name': "sh", 'function': sc.shabda_sagara},
-                 'Monier Williams': {'name': "Monier Williams", 'short_name': "mw", 'function': sc.monier_wiliams},
+CONFIGURATION = {'spoken-skt': {'name': "Spoken Sanskrit", 'short_name': "sp", 'function': sc.spoken_sanskrit},
+                 'shabda-sagara': {'name': "Shabda Sagara", 'short_name': "sh", 'function': sc.shabda_sagara},
+                 'mwes': {'name': "Monier Williams", 'short_name': "mw", 'function': sc.monier_wiliams},
                  'Monier Williamsb': {'name': None, 'short_name': None, 'function': sc.monier_williams2},  # hidden for inline mode
-                 'Hindi': {'name': "Hindi", 'short_name': "hi", 'function': sc.hindi_dict},
-                 'Apte': {'name': "Apte", 'short_name': "apte", 'function': sc.apte},
-                 'Wilson': {'name': "Wilson", 'short_name': "wilson", 'function': sc.wilson},
-                 'Yates': {'name': "Yates", 'short_name': "yates", 'function': sc.yates}
+                 'hindi': {'name': "Hindi", 'short_name': "hi", 'function': sc.hindi_dict},
+                 'apte-sa': {'name': "Apte", 'short_name': "apte", 'function': sc.apte},
+                 'wilson': {'name': "Wilson", 'short_name': "wilson", 'function': sc.wilson},
+                 'yates': {'name': "Yates", 'short_name': "yates", 'function': sc.yates}
                  }
 
 
@@ -74,26 +74,20 @@ def fetch_meaning(word) -> dict:
     # fetch meaning data, after matching word found
     request = urllib.request.Request(data_url, headers=headers)
     response = urllib.request.urlopen(request, timeout=3)
-    data = response.read().decode('UTF-8')
+    data = response.read()
 
     tree = html.fromstring(data)
+    content = json.loads(tree.find(".//script[@id='__NEXT_DATA__']").text)
+    result_content = content['props']['pageProps']['results']
 
-    extracted_parts = tree.findall(".//div[@class='card']")
     available_dict = {}
 
-    for part in extracted_parts:
-        service = part.find(".//strong")
-        if service is not None:  # checks if extracted part really has <strong> tag
-            service = service.text
-        else:
-            continue
-
-        if service in available_dict.keys():
-            continue
-        elif service not in config("dicts"):
-            continue
-        else:
-            available_dict[service] = sc.universal(word, part)
+    for part in result_content:
+        if part in config("dicts"):
+            if part in ["spoken-skt", "shabda-sagara", "wilson", "yates", "hindi", "mwes", "apte-sa"]:
+                available_dict[part] = config("function", part)(word, result_content[part][0]['text'])
+            else:
+                available_dict[part] = result_content[part][0]['text']
 
     return available_dict
 
@@ -149,15 +143,15 @@ def get_meaning(update: Update, context: CallbackContext) -> None:
 
         if preference is not None and preference in available_sources:  # if preference set and available also
             answer = meanings[preference]
-            source = preference
+            source = CONFIGURATION[dict]['name']
         else:  # if preference not found or not set at all
             for dict in config("dicts"):
                 if dict in available_sources:
                     answer = meanings[dict]
-                    source = dict
+                    source = CONFIGURATION[dict]['name']
                     break
 
-        answer_html = '\n'.join(answer) + "\n" + f"<i><u>📖 {source}</u></i>"
+        answer_html = '\n'.join(answer) + "\n\n" + f"<i><u>📖 {source}</u></i>"
         analytics.track(update, search_term, preference, available_sources, source)
 
     update.message.reply_html(answer_html)

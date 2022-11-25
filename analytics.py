@@ -22,6 +22,8 @@ def initialize(DETA_TOKEN):
     deta = Deta(DETA_TOKEN)
     global db
     db = deta.Base("skb-database-1")
+    global INITIALIZED
+    INITIALIZED = True
 
 
 records = {}  # used to record last time user made an inline query

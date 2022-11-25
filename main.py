@@ -143,7 +143,7 @@ def get_meaning(update: Update, context: CallbackContext) -> None:
 
         if preference is not None and preference in available_sources:  # if preference set and available also
             answer = meanings[preference]
-            source = CONFIGURATION[dict]['name']
+            source = CONFIGURATION[preference]['name']
         else:  # if preference not found or not set at all
             for dict in config("dicts"):
                 if dict in available_sources:

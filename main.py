@@ -169,10 +169,10 @@ def get_meaning_inline(update: Update, context: CallbackContext) -> None:
     if meanings:
         for service in available_sources:
             id = service
-            title = service
+            title = CONFIGURATION[service]['name']
             description = "".join(meanings[service][1:3])  # for particular dict, first part is answer_list
-            source = service
-            message = InputTextMessageContent('\n'.join(meanings[service]) + "\n" + f"<i><u>📖 {source}</u></i>", parse_mode="HTML")
+            source = CONFIGURATION[service]['name']
+            message = InputTextMessageContent('\n'.join(meanings[service]) + "\n\n" + f"<i><u>📖 {source}</u></i>", parse_mode="HTML")
             results.append(InlineQueryResultArticle(id=id, title=title, description=description, input_message_content=message))
 
     else:

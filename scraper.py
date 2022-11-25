@@ -44,7 +44,7 @@ def shabda_sagara(word, part):
 
 
 def hindi_dict(word, part):
-    answer_list = [f'* {word}\n', f'* {part}']
+    answer_list = [f'* {word}', f'* {part}']
     # answer_table.append("\n<i><u>From Hindi Dictionary</u></i>")
     # answer_string = ''.join(answer_list)
     return answer_list

@@ -11,10 +11,14 @@ import pprint
 import time
 
 IST = timezone('Asia/Kolkata')  # Indian Standard Time (+5:30)
+INITIALIZED = False  # Check if analytics is set up
 
 
 def initialize(DETA_TOKEN):
     # We are using Deta Base service from deta.sh to store analytics data
+    if DETA_TOKEN is None:  # Mark as analytics is set up
+        return
+
     deta = Deta(DETA_TOKEN)
     global db
     db = deta.Base("skb-database-1")
@@ -24,6 +28,9 @@ records = {}  # used to record last time user made an inline query
 
 
 def track(update, query, preference=None, available_sources=[], provided_from=None, inline=False):
+    if not INITIALIZED:  # Don't do anything if analytics is not set up
+        return
+
     data = {}
 
     # These are infromation about your search and results

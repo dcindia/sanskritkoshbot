@@ -3,9 +3,9 @@ import re
 import urllib.parse
 import urllib.request
 import json
-from telegram import Update, MessageEntity
+from telegram import Update, MessageEntity, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler
+from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler
 from indic_transliteration import sanscript, detect
 from lxml import html
 import scraper as sc
@@ -121,40 +121,58 @@ def kosha_list(update: Update, context: CallbackContext) -> None:
 
 def get_meaning(update: Update, context: CallbackContext) -> None:
 
-    search_term = update.message.text
-    preference = None
+    if update.callback_query:
+        data = update.callback_query.data
+        command = context.match.group(1)
+        preference = config("name", command)
+        search_term = context.match.group(2)
+    else:
+        search_term = update.message.text
+        preference = None
 
-    if context.args == []:
-        update.message.reply_text("कृपया, मुझे कोई शब्द प्रदान करें।")
-        return
+        if context.args == []:
+            update.message.reply_text("कृपया, मुझे कोई शब्द प्रदान करें।")
+            return
 
-    if update.message.entities and update.message.entities[0].type == MessageEntity.BOT_COMMAND:
-        command = update.message.text[1: update.message.entities[0].length].split('@')[0]
-        search_term = " ".join(context.args)
-        if not command.startswith("arth"):
-            preference = config("name", command)
+        if update.message.entities and update.message.entities[0].type == MessageEntity.BOT_COMMAND:
+            command = update.message.text[1: update.message.entities[0].length].split('@')[0]
+            search_term = " ".join(context.args)
+            if not command.startswith("arth"):
+                preference = config("name", command)
 
     meanings = fetch_meaning(search_term)
     if not meanings:
-        answer_html = NOT_FOUND_MESSAGE
+        update.message.reply_html(NOT_FOUND_MESSAGE)
         analytics.track(update, search_term, preference)
     else:
-        available_sources = meanings.keys()
+        available_sources = list(meanings.keys())
 
         if preference is not None and preference in available_sources:  # if preference set and available also
             answer = meanings[preference]
-            source = CONFIGURATION[preference]['name']
+            source = preference
         else:  # if preference not found or not set at all
             for dict in config("dicts"):
                 if dict in available_sources:
                     answer = meanings[dict]
-                    source = CONFIGURATION[dict]['name']
+                    source = dict
                     break
 
-        answer_html = '\n'.join(answer) + "\n\n" + f"<i><u>📖 {source}</u></i>"
+        answer_html = '\n'.join(answer) + "\n\n" + f"<i><u>📖 {CONFIGURATION[source]['name']}</u></i>"
         analytics.track(update, search_term, preference, available_sources, source)
 
-    update.message.reply_html(answer_html)
+        available_sources.remove(source)  # source removed from here
+
+        keymap = []
+        while available_sources:
+            row = [InlineKeyboardButton(text=CONFIGURATION[x_source]['name'],
+                                        callback_data="/" + CONFIGURATION[x_source]['short_name'] + " " + search_term)
+                   for x_source in available_sources[:2]]
+            keymap.append(row)
+            available_sources = available_sources[2:]  # sources continuosly getting removed as added to keymap
+    if update.callback_query:
+        update.callback_query.message.edit_text(answer_html, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keymap))
+    else:
+        update.message.reply_html(answer_html, reply_markup=InlineKeyboardMarkup(keymap))
 
 
 def get_meaning_inline(update: Update, context: CallbackContext) -> None:
@@ -190,6 +208,7 @@ def set_up(BOT_TOKEN, DETA_TOKEN):
     updater = Updater(BOT_TOKEN)
     dispatcher = updater.dispatcher
 
+    dispatcher.add_handler(CallbackQueryHandler(get_meaning, pattern=r"^/(\w+) (\S+)"))
     dispatcher.add_handler(CommandHandler(['start', 'help'], on_start))
     dispatcher.add_handler(CommandHandler(['kosha'], kosha_list))
     dispatcher.add_handler(CommandHandler(['arth', 'sh', 'sp', 'hi', 'apte', 'wilson', 'mw', 'yates'], get_meaning))

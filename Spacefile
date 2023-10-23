@@ -1,0 +1,22 @@
+# Spacefile Docs: https://go.deta.dev/docs/spacefile/v0
+v: 0
+micros:
+  - name: sanskritkoshbot
+    src: ./
+    engine: python3.9
+    run: gunicorn main:app
+    dev: gunicorn main:app -b 0.0.0.0:7071
+    primary: true
+    presets:
+      env:
+        - name: BOT_TOKEN
+          default: "<your bot token>"
+        - name: DETA_TOKEN
+          default: "<your deta base token>"
+        - name: SERVER_URL
+          default: "<your server url>"
+
+    public_routes:
+      - "/telegram/*"
+
+    

@@ -1,11 +1,12 @@
 import logging
-import re
+import os
 import urllib.parse
 import urllib.request
 import json
-from telegram import Update, MessageEntity, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Bot, Update, MessageEntity, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler
+from flask import Flask, request
+from telegram.ext import Dispatcher, CommandHandler, CallbackContext, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler
 from indic_transliteration import sanscript, detect
 from lxml import html
 import scraper as sc
@@ -203,10 +204,7 @@ def unknown(update: Update, context: CallbackContext) -> None:
     update.message.reply_text("माफ़ कीजिये ! आपकी मांग मुझे समझ नहीं आई।")
 
 
-def set_up(BOT_TOKEN, DETA_TOKEN):
-    global updater, dispatcher
-    updater = Updater(BOT_TOKEN)
-    dispatcher = updater.dispatcher
+def setup(dispatcher, DETA_TOKEN):
 
     dispatcher.add_handler(CallbackQueryHandler(get_meaning, pattern=r"^/(\w+) (\S+)"))
     dispatcher.add_handler(CommandHandler(['start', 'help'], on_start))
@@ -217,3 +215,35 @@ def set_up(BOT_TOKEN, DETA_TOKEN):
     dispatcher.add_handler(InlineQueryHandler(get_meaning_inline))
 
     analytics.initialize(DETA_TOKEN)
+
+
+BOT_TOKEN = os.environ['BOT_TOKEN']
+DETA_TOKEN = os.environ['DETA_TOKEN']
+SERVER_URL = os.environ['SERVER_URL']
+
+bot = Bot(BOT_TOKEN)
+dispatcher = Dispatcher(bot, None, workers=0)
+setup(dispatcher, DETA_TOKEN)
+
+app = Flask('sanskritkoshbot')
+
+@app.get('/')
+def index_page():
+    print('index')
+    return r"<a href=https://telegram.me/sanskritkoshbot>Click here to use me on Telegram !</a>"
+
+@app.route('/telegram/' + BOT_TOKEN, methods=['GET', 'POST'])
+def response():
+    """Receive webhook requests from telegram
+    """
+    req = request.get_json()
+    update = Update.de_json(req, bot)
+    dispatcher.process_update(update)
+    return "Processed."
+
+@app.route("/set_webhook")
+def set_webhook():
+    token = request.args.get('token')
+    if token == BOT_TOKEN:
+        bot.set_webhook(SERVER_URL + "/telegram/" + BOT_TOKEN)
+        return "WebHook set succesfully!!"

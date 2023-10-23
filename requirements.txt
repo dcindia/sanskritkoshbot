@@ -3,3 +3,6 @@ indic_transliteration==2.3.5
 lxml==4.7.1
 pytz==2019.3
 deta==1.1.0
+Flask==2.0.0
+gunicorn
+werkzeug==2.2.3
